@@ -1,0 +1,24 @@
+---
+title: "Projet Ananlyse Multivariée"
+author: ""
+date: "5/22/2021"
+format: 
+  html:
+    fig-width: 8
+    fig-height: 4
+    code-fold: true
+---
+
+## Préparation des données
+
+ L'idée: Traits tout en qualitatif avec des classes pour var quanti. Pour l'acp env on enleve les codes des sites et x et y ainsi que les vars qualitatives. 
+
+Pour traits on fait une ACM et donc une classif pour vars quanitiatives.
+
+L'objectif final est un couplage de tableau 
+
+
+```{r}
+
+
+```
