@@ -1,6 +1,13 @@
+# Comment l'anthropisation des cours d'eau influence-t-elle les traits et la composition des poissons ?
+
+# H1: Les espèces généralistes ont plus de succés que les spécialistes
+# H2: Les espèces gagnantes ont des strategies r.
+# H3: 
+
 library(ade4)
 
 
+##################### Préparation des données ##################
 env= read.csv('env.csv', header = TRUE,  sep = ';',  stringsAsFactors = FALSE, row.names = 1)
 sp= read.csv('sp.csv', header = TRUE,  sep = ';',  stringsAsFactors = FALSE, row.names = 1)
 traits= read.csv('traits.csv', header = TRUE,  sep = ';',  stringsAsFactors = FALSE, row.names = 1)
@@ -9,82 +16,63 @@ env
 sp 
 traits 
 
-str(env)
+env <- env[rownames(sp), ]
 
-    ## Preparation des données
-
-    # Environnement
-
-env=env[,-c(1,2,3,8)]
-
-    # Traits
-
-breaks_troph <- quantile(traits$TROPH, probs = seq(0, 1, 0.25), na.rm = TRUE)
-
-traits$TROPH_classe <- cut(traits$TROPH, 
-                      breaks = breaks_troph, 
-                      include.lowest = TRUE,
-                      labels = c("Q1", "Q2", "Q3", "Q4"))
+str(traits)
+traits_indic=  traits[, c("FE","QUAL", "HAB", "OXY", "TEMP", "STATUT")]
+traits_indic <- as.data.frame(lapply(traits_indic, as.factor))
 
 
-breaks_TL <- quantile(traits$TL, probs = seq(0, 1, 0.25), na.rm = TRUE)
-
-traits$TL_classe <- cut(traits$TL, 
-                      breaks = breaks_TL, 
-                      include.lowest = TRUE,
-                      labels = c("Q1", "Q2", "Q3", "Q4"))
-
-
-breaks_TMAX <- quantile(traits$TMAX, probs = seq(0, 1, 0.25), na.rm = TRUE)
-
-traits$TMAX_classe <- cut(traits$TMAX, 
-                      breaks = breaks_TMAX, 
-                      include.lowest = TRUE,
-                      labels = c("Q1", "Q2", "Q3", "Q4"))
-
-traits=traits[,-c(1,2,3,7,11,16)]
-head(traits)
-
-traits <- as.data.frame(lapply(traits, as.factor))
+env_quant <- env[, c("TEMP", "MTC", "MTW", "PREC", "BV", "DIST", "ALT", "LARG", "PROF")]
+env_quant$BV   <- log(env_quant$BV + 1)
+env_quant$DIST <- log(env_quant$DIST + 1)
+env_quant$ALT  <- log(env_quant$ALT + 1)
+env_quant$LARG <- log(env_quant$LARG + 1)
+env_quant$PROF <- log(env_quant$PROF + 1)
 
 
+sp = log(sp + 1)
+
+##################### Ségrégration des espèces  ##################
 
 
-    ## Analyse 
+acm_indic <- dudi.acm(traits_indic, scannf = FALSE, nf = 2)
+s.arrow(acm_indic$co, clabel = 0.8)  
 
-# Analyse des Espèces 
-afc_esp <- dudi.coa(sp, scannf = FALSE, nf = 2)
-scatter(afc_esp, posi = "topright")
-title("AFC des Espèces")
-inertia.dudi(afc_esp)
+dist_indic <- dist(acm_indic$li)
+classif_indic <- hclust(dist_indic, method = "ward.D2") # à verifier avec d'autres méthodes de classification hiérarchique
+traits$Profil <- as.factor(cutree(classif_indic, k = 3)) # 3 pour gagnants / perdants / intermédiaires
 
-# Analyse de l'Environnement 
-acp1=dudi.pca(env,center = TRUE, scale = TRUE, scannf = F, nf=2)
-barplot(acp1$eig, main="Valeurs propres") 
-sum(acp1$eig[1:2]) / sum(acp1$eig) * 100
-s.corcircle(acp1$co, clabel = 0.8) 
-plot(acp1$li)
+plot(classif_indic, labels = rownames(traits), cex = 0.6)
+rect.hclust(classif_indic, k = 3, border = c("red", "orange", "forestgreen"))
+       
 
+######################### ACP environnementale  ##################
 
+acp_env = dudi.pca(env_quant, center = TRUE, scale = TRUE, scannf = FALSE, nf = 2)
+sum(acp_env$eig[1:2]/sum(acp_env$eig)*100) 
 
-# Analyse des traits
+par(mfrow = c(1, 2))
 
-acm_traits <- dudi.acm(traits, scannf = FALSE, nf = 2)
-s.arrow(acm_traits$co, clabel = 0.7, sub = "Traits fonctionnels (ACM)")
+s.corcircle(acp_env$co, xax = 1, yax = 2, clabel = 0.8)
 
+s.class(acp_env$li, fac = as.factor(env$OS), 
+        col = c("gold", "red", "forestgreen", "blue"),cstar = 1,cellipse = 1.5, axesell = FALSE, clabel = 1)
 
+######################## AFC avec les espèces  ##################
 
+afc_sp = dudi.coa(sp, scannf = FALSE, nf = 2)
 
+scatter(afc_sp)
+inertia.dudi(afc_sp)
 
-# Analyse conjointe des espèces et de l'environnement
+########################## Coinertie entre les espèces et les variables environnementales  ##################
 
-acp_poid=dudi.pca(env,row.w=afc_esp$lw, scannf = FALSE, nf=2)
+acp_pond = dudi.pca(env_quant, row.w = afc_sp$lw, center = TRUE, scale = TRUE, scannf = FALSE, nf = 2)
+coiner_syndorme= coinertia(acp_pond, afc_sp, scannf = FALSE, nf = 2)
 
-coiner1=coinertia(acp_poid, afc_esp, scannf = FALSE, nf = 2)
-test_coiner=randtest(coiner1, nrepet = 999)
-plot(coiner1, main = "Analyse conjointe des espèces et de l'environnement")
-print(test_coiner)
+randtest(coiner_syndorme, nrepet = 999)
 
+plot(coiner_syndorme)
 
-
-# Analyse conjointe des espèces et des traits
+##################### Réponse à H1 : Les espèces généralistes ont plus de succès que les spécialistes  ##################

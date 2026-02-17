@@ -147,6 +147,15 @@ s.value(xy, data_visu$Profil_3,
         csize = 0.5) # csize règle la taille des carrés
 
 par(mfrow = c(1, 1))
+
+s.value(xy, data_visu$Profil_1, 
+        grid = FALSE,
+        csize = 0.5) # csize règle la taille des carrés
+
+s.value(xy, data_visu$Profil_2, 
+        grid = FALSE,
+        csize = 0.5) # csize règle la taille des carrés
+
 q
 
 
