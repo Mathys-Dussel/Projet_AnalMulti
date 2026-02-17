@@ -40,7 +40,7 @@ acm_indic <- dudi.acm(traits_indic, scannf = FALSE, nf = 2)
 s.arrow(acm_indic$co, clabel = 0.8)  
 
 dist_indic <- dist(acm_indic$li)
-classif_indic <- hclust(dist_indic, method = "ward.D2") # à verifier avec d'autres méthodes de classification hiérarchique
+classif_indic <- hclust(dist_indic, method = "average") # à verifier avec d'autres méthodes de classification hiérarchique
 traits$Profil <- as.factor(cutree(classif_indic, k = 3)) # 3 pour gagnants / perdants / intermédiaires
 
 plot(classif_indic, labels = rownames(traits), cex = 0.6)
@@ -76,3 +76,94 @@ randtest(coiner_syndorme, nrepet = 999)
 plot(coiner_syndorme)
 
 ##################### Réponse à H1 : Les espèces généralistes ont plus de succès que les spécialistes  ##################
+
+# on dégage WATB et tout en facteur
+filtre_OS <- env$OS != "WATB"
+OS_propre <- droplevels(as.factor(env$OS[filtre_OS]))
+
+# On fait une matrice profil en fct d'esp
+matrice_sp_os <- model.matrix(~ 0 + Profil, data = traits)
+
+#matric entre esp et os
+profils_os <- as.data.frame(as.matrix(sp) %*% matrice_sp_os)
+
+#  tout en porcentage
+prop_profils <- (profils_os / rowSums(profils_os)) * 100 
+
+# le df utiles pour les plot
+data_boxplot <- data.frame(OS = OS_propre, prop_profils[filtre_OS, ])
+
+
+
+# on refait un plot de coiner sans WATB
+coord_coia <- coiner_syndorme$lX[filtre_OS, ]
+s.class(coord_coia, fac = OS_propre, 
+        col = c("gold", "red", "forestgreen"), 
+        cstar = 1, cellipse = 1.5, axesell = FALSE, clabel = 1)
+
+
+
+# les plots de boxplot pour les profils
+
+par(mfrow = c(1,3))
+boxplot(Profil1 ~ OS, data = data_boxplot, 
+        col = c("gold", "red", "forestgreen"),
+        ylab = "Proportion dans la communauté (%)", 
+        xlab = "Occupation du sol profil 1",
+        las = 1)
+
+boxplot(Profil2 ~ OS, data = data_boxplot, 
+        col = c("gold", "red", "forestgreen"),
+        ylab = "Proportion dans la communauté (%)", 
+        xlab = "Occupation du sol profil 2",
+        las = 1)
+
+boxplot(Profil3 ~ OS, data = data_boxplot, 
+        col = c("gold", "red", "forestgreen"),
+        ylab = "Proportion dans la communauté (%)", 
+        xlab = "Occupation du sol profil 3",
+        las = 1)
+par(mfrow = c(1,1))
+
+
+############### la carto pcq c'est joliiiiii ##########
+
+xy <- env[filtre_OS, c("X", "Y")]
+
+s.class(xy, fac = OS_propre, 
+        col = c("gold", "red", "forestgreen"),
+        cstar = 0, cellipse = 0, axesell = FALSE, grid = FALSE)
+
+
+par(mfrow = c(1, 3))
+s.value(xy, data_boxplot$Profil1, 
+        grid = FALSE,
+        csize = 0.5) 
+
+s.value(xy, data_boxplot$Profil2, 
+        grid = FALSE,
+        csize = 0.5) 
+    
+s.value(xy, data_boxplot$Profil3, 
+        grid = FALSE,
+        csize = 0.5) 
+
+par(mfrow = c(1, 1))
+
+
+library(ggplot2)
+
+# Création de la carte épurée
+ggplot(data.frame(x = xy$X, y = xy$Y, OS = OS_propre), aes(x = x, y = y, color = OS)) +
+  geom_point(size = 3, alpha = 0.8) + # Points légèrement plus gros pour compenser l'absence d'axes
+  scale_color_manual(values = c("gold", "red", "forestgreen")) + 
+  coord_fixed() + # Très important pour ne pas déformer la géographie
+  theme_void() +  # Supprime TOUT (axes, fond, grille, texte)
+  theme(
+    legend.position = "right",
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5, face = "bold", margin = margin(b = 10))
+  ) +
+  labs(title = "Structure spatiale de l'occupation du sol",
+       color = "Type d'OS")
+
